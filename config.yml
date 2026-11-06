@@ -153,7 +153,9 @@ customCommands:
       - type: "menuFromCommand"
         title: "Choose a commit message"
         key: "Msg"
-        command: "~/.config/lazygit/ai-commit.sh"
+        # Prompt commands run without a shell, so `~` and $HOME need bash to expand
+        command: >-
+          bash -c 'exec "${XDG_CONFIG_HOME:-$HOME/.config}/lazygit/ai-commit.sh"'
         filter: '^(?P<number>\d+)\.\s(?P<message>.+)$'
         valueFormat: "{{ .message }}"
         labelFormat: "{{ .number }}: {{ .message | green }}"

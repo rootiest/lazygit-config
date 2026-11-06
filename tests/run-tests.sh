@@ -20,6 +20,13 @@ else
   skip "config.yml parses (python3 PyYAML not installed)"
 fi
 
+# Prompt commands run without a shell: a leading ~ or $VAR is never expanded
+if grep -nE '^\s+command: *"?(~|\$)' config.yml; then
+  bad "commands do not rely on shell expansion"
+else
+  pass "commands do not rely on shell expansion"
+fi
+
 # ai-commit.sh is syntactically valid and lint-clean
 if bash -n ai-commit.sh; then pass "ai-commit.sh syntax"; else bad "ai-commit.sh syntax"; fi
 if command -v shellcheck >/dev/null; then
