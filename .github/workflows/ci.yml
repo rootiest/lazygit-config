@@ -1,0 +1,15 @@
+# CI: runs the project's test suite on Gitea runners.
+# GitHub sees this file through the mirror; the guard skips it there.
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test:
+    if: github.server_url != 'https://github.com'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test
+        run: ./tests/run-tests.sh   # replace with the project's documented test command
