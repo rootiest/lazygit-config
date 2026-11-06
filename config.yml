@@ -1,0 +1,161 @@
+#          ╭──────────────────────────────────────────────────────────╮
+#          │                      LazyGit Config                      │
+#          ╰──────────────────────────────────────────────────────────╯
+
+# GUI options
+gui:
+  # Customize the colorscheme
+  # Catppuccin Mocha - Green
+  # See: https://github.com/catppuccin/lazygit
+  # See: https://github.com/catppuccin/lazygit/blob/main/themes-mergable/mocha/green.yml
+  theme:
+    activeBorderColor:
+      - "#a6e3a1"
+      - bold
+    inactiveBorderColor:
+      - "#a6adc8"
+    optionsTextColor:
+      - "#89b4fa"
+    selectedLineBgColor:
+      - "#16161f"
+      - bold
+    cherryPickedCommitBgColor:
+      - "#45475a"
+    cherryPickedCommitFgColor:
+      - "#a6e3a1"
+    unstagedChangesColor:
+      - "#f38ba8"
+    defaultFgColor:
+      - "#cdd6f4"
+    searchingActiveBorderColor:
+      - "#f9e2af"
+    # Customize the color highlights of the author
+    authorColors:
+      "rootiest": "#ff6e96"
+      "*": "#b4befe"
+    # Customize the color highlights of the branch
+    branchColorPatterns:
+      "^docs(/|$)": "#11aaff"
+      "^dev": "#ebad6c"
+      "^main(/|$)": "#af92fc"
+      "^master(/|$)": "#af92fc"
+  # Use latest Nerd Fonts glyphs
+  # Requires: https://github.com/ryanoasis/nerd-fonts
+  nerdFontsVersion: "3"
+  # Show arrows for commits that diverge from the base branch
+  showDivergenceFromBaseBranch: onlyArrow
+  # How things are filtered when typing '/'
+  filterMode: fuzzy
+  spinner:
+    # The frames of the spinner animation.
+    frames:
+      - "⠋"
+      - "⠙"
+      - "⠩"
+      - "⠸"
+      - "⠼"
+      - "⠴"
+      - "⠦"
+      - "⠧"
+    # The "speed" of the spinner in milliseconds.
+    rate: 60
+update:
+  # Installed and updated by pacman
+  method: never
+# Background refreshes
+refresher:
+  # File/submodule refresh interval in seconds.
+  refreshInterval: 10
+  # Re-fetch interval in seconds.
+  fetchInterval: 60
+os:
+  open: xdg-open {{filename}} >/dev/null
+  openLink: xdg-open {{link}} >/dev/null
+  # OSC 52, so copying also works over SSH
+  copyToClipboardCmd: printf "\033]52;c;$(printf {{text}} | base64 -w 0)\a" > /dev/tty
+  editPreset: nvim-remote
+  editInTerminal: true
+# Hide the startup popup
+disableStartupPopups: true
+# Don't prompt to return from subprocess when closing child processes (commitizen, etc)
+promptToReturnFromSubprocess: false
+git:
+  overrideGpg: true
+  # Cycle with `|`. Both ignore CRLF/LF-only differences.
+  diffRenderers:
+    - # Inline diff with syntax highlighting
+      # Requires: https://github.com/Wilfred/difftastic
+      type: extDiff
+      name: difftastic
+      command: difft --color=always --display=inline --syntax-highlight=on --tab-width=2 --background={{colorScheme}} --width={{width}} --context={{diffContext}}
+    - type: rawGit
+      name: git
+      args: [--ignore-cr-at-eol]
+customCommands:
+  # Shortcut to prune branches that have been deleted from remote
+  - key: "<c-p>" # Prune deleted remote branches
+    command: "git remote prune {{.SelectedRemote.Name}}"
+    context: "remotes"
+    loadingText: "Pruning..."
+    description: "prune deleted remote branches"
+  # Shortcut to prune local branches that have been merged to the default branch
+  - key: "b" # Prune local merged branches
+    command: >-
+      base=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null); base=${base#origin/}; base=${base:-main}; git branch --merged "$base" --format='%(refname:short)' | grep -vx -e "$base" -e "$(git branch --show-current)" | xargs -r git branch -d
+    context: "localBranches"
+    loadingText: "Pruning..."
+    description: "prune local branches merged to the default branch"
+  # Conventional commit, built from prompts (no external tools needed)
+  - key: "C"
+    context: "files"
+    description: "conventional commit"
+    prompts:
+      - type: "menu"
+        key: "Type"
+        title: "Type of change"
+        options:
+          - {value: "feat", description: "a new feature"}
+          - {value: "fix", description: "a bug fix"}
+          - {value: "docs", description: "documentation only"}
+          - {value: "refactor", description: "neither fixes a bug nor adds a feature"}
+          - {value: "perf", description: "improves performance"}
+          - {value: "test", description: "adds or corrects tests"}
+          - {value: "build", description: "build system or dependencies"}
+          - {value: "ci", description: "CI configuration"}
+          - {value: "style", description: "formatting, no code change"}
+          - {value: "chore", description: "other changes that don't touch src or tests"}
+          - {value: "revert", description: "reverts a previous commit"}
+      - type: "input"
+        key: "Scope"
+        title: "Scope (optional)"
+      - type: "menu"
+        key: "Breaking"
+        title: "Breaking change?"
+        options:
+          - {name: "no", value: ""}
+          - {name: "yes", value: "!"}
+      - type: "input"
+        key: "Summary"
+        title: "Summary"
+      - type: "confirm"
+        key: "Confirm"
+        title: "Commit"
+        body: "{{.Form.Type}}{{if .Form.Scope}}({{.Form.Scope}}){{end}}{{.Form.Breaking}}: {{.Form.Summary}}"
+    command: >-
+      {{$scope := ""}}{{if .Form.Scope}}{{$scope = printf "(%s)" .Form.Scope}}{{end}}git commit --message {{printf "%s%s%s: %s" .Form.Type $scope .Form.Breaking .Form.Summary | quote}}
+    loadingText: "Committing..."
+  # AI-suggested conventional commit messages for the staged changes
+  # Requires: LAZYGIT_ANTHROPIC_API_KEY (see ai-commit.sh)
+  - key: "<c-a>"
+    context: "files"
+    description: "pick AI commit"
+    prompts:
+      - type: "menuFromCommand"
+        title: "Choose a commit message"
+        key: "Msg"
+        command: "~/.config/lazygit/ai-commit.sh"
+        filter: '^(?P<number>\d+)\.\s(?P<message>.+)$'
+        valueFormat: "{{ .message }}"
+        labelFormat: "{{ .number }}: {{ .message | green }}"
+    command: "git commit --message {{.Form.Msg | quote}}"
+    loadingText: "Committing..."
